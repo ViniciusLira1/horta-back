@@ -78,5 +78,5 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_session)):
     if not db_user or not verify_password(user.senha, db_user.senha_hash):
         raise HTTPException(status_code=401, detail="Email ou senha incorretos")
     
-    # Retorna OK, sem JWT por enquanto
+   
     return {"msg": "Login realizado com sucesso", "user_id": db_user.id_usuario}

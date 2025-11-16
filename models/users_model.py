@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm import relationship
 from core.configs import DBBaseModel
 
 class User(DBBaseModel):
@@ -8,3 +9,8 @@ class User(DBBaseModel):
     nome = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     senha_hash = Column(String, nullable=False)
+
+    # Relacionamento com os controladores (corrigido)
+    controladores = relationship("Controlador", back_populates="usuario")
+
+    

@@ -1,9 +1,15 @@
 import asyncio
+import sys
+import os
+import models.__all_models  
+# Adiciona o diretório raiz do projeto no path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from core.configs import DBBaseModel
 from core.database import engine
 
 async def create_tables() -> None:
-    # Força o carregamento de todos os models
+   
     import models.__all_models  
 
     print('Criando as tabelas do banco de dados')
