@@ -1,0 +1,22 @@
+# Ambiente virtual
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Banco local
+*.db
+*.db-journal
+
+# Variáveis de ambiente
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+dist/
+build/
+*.egg-info/

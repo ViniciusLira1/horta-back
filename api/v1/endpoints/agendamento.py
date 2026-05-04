@@ -1,11 +1,15 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import update as sa_update
 from typing import List
 from datetime import datetime, time
 from core.deps import get_session
 from models.agendamento_model import Agendamento
+from models.execucao_model import ExecucaoIrrigacao
 from schemas.agendamento_schema import AgendamentoCreate, AgendamentoOut
+from api.v1.endpoints.bomba import _estado, _auto_completar, _criar_task
 
 router = APIRouter()
 
@@ -64,12 +68,21 @@ async def delete_agendamento(id_agendamento: int, db: AsyncSession = Depends(get
     if not agendamento:
         raise HTTPException(status_code=404, detail="Agendamento não encontrado")
 
+    # Desassocia as execuções do agendamento via SQL direto (preserva histórico,
+    # evita que o ORM tente setar id_zona_sensor=NULL por cascade acidental)
+    await db.execute(
+        sa_update(ExecucaoIrrigacao)
+        .where(ExecucaoIrrigacao.id_agendamento == id_agendamento)
+        .values(id_agendamento=None)
+    )
+    await db.flush()
+
     await db.delete(agendamento)
     await db.commit()
     return {"message": "Agendamento removido com sucesso"}
 
 
-# Executar manualmente a irrigação
+# Executar manualmente a irrigação via agendamento
 @router.post("/{id_agendamento}/executar")
 async def executar_agendamento(id_agendamento: int, db: AsyncSession = Depends(get_session)):
     result = await db.execute(select(Agendamento).filter(Agendamento.id_agendamento == id_agendamento))
@@ -78,7 +91,27 @@ async def executar_agendamento(id_agendamento: int, db: AsyncSession = Depends(g
     if not agendamento:
         raise HTTPException(status_code=404, detail="Agendamento não encontrado")
 
-    # Aqui futuramente vamos integrar com o microcontrolador (ESP32)
+    if _estado.get("ligada"):
+        raise HTTPException(status_code=409, detail="Bomba já está em uso. Aguarde ou pare a irrigação atual.")
+
     agendamento.ultima_execucao = datetime.utcnow()
+
+    execucao = ExecucaoIrrigacao(
+        id_zona_sensor=agendamento.id_zona_sensor,
+        id_agendamento=agendamento.id_agendamento,
+        tipo="agendado",
+        iniciado_em=datetime.utcnow(),
+        duracao_minutos=agendamento.duracao_minutos,
+        status="em_andamento",
+        descricao=f"Agendamento '{agendamento.nome}' iniciado manualmente pelo dashboard",
+    )
+    db.add(execucao)
     await db.commit()
-    return {"message": f"Irrigação manual executada para '{agendamento.nome}'"}
+    await db.refresh(execucao)
+
+    _estado["ligada"] = True
+    _estado["id_execucao_ativa"] = execucao.id_execucao
+
+    _criar_task(_auto_completar(execucao.id_execucao, agendamento.duracao_minutos))
+
+    return {"message": f"Irrigação iniciada para '{agendamento.nome}'"}

@@ -1,0 +1,103 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+
+const char* ssid = "VIVOFIBRA-6231";
+const char* password = "vinirafa12345";
+const char* serverUrl = "http://192.168.15.7:8000/api/v1/leitura/"; 
+const char* serverLeitura = "http://192.168.15.7:8000/api/v1/leitura/";
+const char* serverStatusBomba = "http://192.168.15.7:8000/api/v1/bomba/status";
+
+int sensorPin = 34;
+int comandoPin = 4;  // Pino que vai para o Arduino
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(comandoPin, OUTPUT);
+  digitalWrite(comandoPin, LOW);
+
+  WiFi.begin(ssid, password);
+  Serial.print("Conectando");
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\nWiFi conectado!");
+  Serial.println(WiFi.localIP());
+}
+
+void loop() {
+
+ Serial.println("Iniciando ciclo de leitura...");
+
+  if (WiFi.status() == WL_CONNECTED) {
+    int valorBruto = analogRead(sensorPin);
+    float umidade = map(valorBruto, 4095, 1000, 0, 100);
+    if (umidade < 0) umidade = 0;
+    if (umidade > 100) umidade = 100;
+
+    Serial.print("Valor bruto do sensor: ");
+    Serial.println(valorBruto);
+    Serial.print("Umidade calculada: ");
+    Serial.println(umidade);
+
+    HTTPClient http;
+    http.begin(serverUrl);
+    http.addHeader("Content-Type", "application/json");
+
+    String jsonData = "{\"id_sensor\":1,\"valor\":" + String(umidade, 2) + "}";
+    Serial.print("Enviando JSON: ");
+    Serial.println(jsonData);
+
+    int httpResponseCode = http.POST(jsonData);
+
+    Serial.print("Código de resposta HTTP: ");
+    Serial.println(httpResponseCode);
+
+    if(httpResponseCode > 0){
+      String response = http.getString();
+      Serial.print("Resposta do servidor: ");
+      Serial.println(response);
+    } else {
+      Serial.print("Erro na requisição: ");
+      Serial.println(http.errorToString(httpResponseCode).c_str());
+    }
+
+    http.end();
+  } else {
+    Serial.println("WiFi desconectado!");
+  }
+  
+
+  // -----------------------------
+  // 3) CONSULTA STATUS DA BOMBA
+  // -----------------------------
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(serverStatusBomba);
+
+    int code = http.GET();
+    Serial.print("GET status -> "); Serial.println(code);
+
+    if (code == 200) {
+      String payload = http.getString();
+      Serial.println("Resposta: " + payload);
+
+      // -----------------------------
+      // 4) LIGAR OU DESLIGAR A BOMBA
+      // -----------------------------
+      if (payload.indexOf("true") != -1) {
+        Serial.println("Ligando Arduino (D4 HIGH)");
+        digitalWrite(comandoPin, HIGH);
+      } else {
+        Serial.println("Desligando Arduino (D4 LOW)");
+        digitalWrite(comandoPin, LOW);
+      }
+    }
+
+    http.end();
+  }
+
+  delay(5000); // executa a cada 5 segundos
+}

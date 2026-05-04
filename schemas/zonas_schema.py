@@ -13,4 +13,4 @@ class ZonaSensorOut(ZonaSensorBase):
     id_zona_sensor: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True

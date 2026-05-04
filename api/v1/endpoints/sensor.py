@@ -4,8 +4,20 @@ from sqlalchemy.future import select
 from typing import List
 
 from models.sensor_model import Sensor
+from models.leitura_sensor_model import LeituraSensor
 from schemas.sensor_schema import SensorCreate, SensorOut
 from core.deps import get_session
+
+
+async def _deletar_sensor_cascade(sensor: Sensor, db: AsyncSession) -> None:
+    """Deleta leituras do sensor e depois o próprio sensor."""
+    leituras = await db.execute(
+        select(LeituraSensor).where(LeituraSensor.id_sensor == sensor.id_sensor)
+    )
+    for l in leituras.scalars().all():
+        await db.delete(l)
+    await db.flush()
+    await db.delete(sensor)
 
 router = APIRouter()
 
@@ -59,6 +71,6 @@ async def delete_sensor(id_sensor: int, db: AsyncSession = Depends(get_session))
     if not sensor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sensor não encontrado")
 
-    await db.delete(sensor)
+    await _deletar_sensor_cascade(sensor, db)
     await db.commit()
     return None

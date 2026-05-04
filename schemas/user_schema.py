@@ -14,4 +14,4 @@ class UserOut(UserBase):
     id_usuario: int  # ID gerado pelo banco
 
     class Config:
-        orm_mode = True  # permite converter de SQLAlchemy para Pydantic
+         from_attributes = True  # permite converter de SQLAlchemy para Pydantic

@@ -22,5 +22,5 @@ class Agendamento(DBBaseModel):
     ativo = Column(Boolean, default=True)
     ultima_execucao = Column(DateTime, nullable=True)
 
-    # Relacionamento
     zonas = relationship("ZonaSensor", back_populates="agendamentos")
+    execucoes = relationship("ExecucaoIrrigacao", back_populates="agendamento")

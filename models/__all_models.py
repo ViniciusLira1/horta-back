@@ -5,3 +5,4 @@ from .sensor_model import Sensor
 from .zonas_model import ZonaSensor
 from .leitura_sensor_model import LeituraSensor
 from .agendamento_model import Agendamento
+from .execucao_model import ExecucaoIrrigacao

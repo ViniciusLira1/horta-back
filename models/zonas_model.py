@@ -15,3 +15,4 @@ class ZonaSensor(DBBaseModel):
     sensor = relationship("Sensor", back_populates="zonas")  # 👈 nome bate com Sensor.zonas
     # zona_model.py
     agendamentos = relationship("Agendamento", back_populates="zonas")
+    execucoes = relationship("ExecucaoIrrigacao", back_populates="zona")

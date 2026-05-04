@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from models.zonas_model import ZonaSensor
+from models.agendamento_model import Agendamento
+from models.execucao_model import ExecucaoIrrigacao
 from schemas.zonas_schema import ZonaSensorCreate, ZonaSensorOut
 from core.deps import get_session
 
@@ -66,6 +68,25 @@ async def deletar_zona(zona_id: int, db: AsyncSession = Depends(get_session)):
     zona = result.scalars().first()
     if not zona:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Zona não encontrada")
+
+    ag_result = await db.execute(
+        select(Agendamento).where(Agendamento.id_zona_sensor == zona_id)
+    )
+    agendamentos = ag_result.scalars().all()
+    if agendamentos:
+        nomes = ", ".join(f'"{a.nome}"' for a in agendamentos)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Não é possível excluir: a zona possui {len(agendamentos)} agendamento(s) vinculado(s) ({nomes}). Exclua os agendamentos primeiro.",
+        )
+
+    # Remove o histórico de execuções vinculado à zona antes de deletar
+    exec_result = await db.execute(
+        select(ExecucaoIrrigacao).where(ExecucaoIrrigacao.id_zona_sensor == zona_id)
+    )
+    for execucao in exec_result.scalars().all():
+        await db.delete(execucao)
+    await db.flush()
 
     await db.delete(zona)
     await db.commit()
