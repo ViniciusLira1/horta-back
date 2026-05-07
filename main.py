@@ -85,20 +85,42 @@
 
 
 
-
 import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+
 import uvicorn
 
+import models.__all_models
+
 from api.v1.api import api_router
-from core.configs import settings
+from core.configs import settings, DBBaseModel
+from core.database import engine
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+
+    # Cria tabelas automaticamente
+    async with engine.begin() as conn:
+        await conn.run_sync(DBBaseModel.metadata.create_all)
+
+    print("[STARTUP] Banco conectado com sucesso")
+
+    yield
+
+    print("[SHUTDOWN] API encerrada")
+
 
 app = FastAPI(
     title="API Irrigação IoT",
-    version="1.0"
+    version="1.0",
+    lifespan=lifespan
 )
 
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -107,15 +129,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Rotas
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
 
 @app.get("/")
 async def home():
     return {"status": "online"}
 
+
 @app.get("/ping")
 async def ping():
     return {"msg": "pong!"}
+
+
+@app.get("/db-test")
+async def db_test():
+    return {"database": "ok"}
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
