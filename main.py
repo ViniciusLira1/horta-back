@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
         pass
 
 
-app = FastAPI(title="API Irrigação IoT", version="1.0", lifespan=lifespan)
+app = FastAPI(title="API Irrigação IoT", version="1.0")
 
 # 🔥 CORS (LIBERA TUDO - DEV)
 app.add_middleware(
