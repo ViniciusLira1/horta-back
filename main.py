@@ -86,15 +86,19 @@
 
 
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+
+from api.v1.api import api_router
+from core.configs import settings
 
 app = FastAPI(
     title="API Irrigação IoT",
     version="1.0"
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -103,14 +107,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(api_router, prefix=settings.API_V1_STR)
+
 @app.get("/")
 async def home():
-    return {
-        "status": "online"
-    }
+    return {"status": "online"}
 
 @app.get("/ping")
 async def ping():
-    return {
-        "msg": "pong!"
-    }
+    return {"msg": "pong!"}
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+    )
